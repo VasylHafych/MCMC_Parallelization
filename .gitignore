@@ -1,5 +1,9 @@
 .ipynb_checkpoints
 .DS_Store
 Generated_Data
+Temp*
+temp*
+job*
+
 
 
