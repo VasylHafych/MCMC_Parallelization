@@ -1,3 +1,6 @@
+##  sbatch my_program_batch.sh 
+## squeue | grep vhafych
+
 #!/bin/bash -l
 
 #SBATCH -o ./job.out.%j
@@ -20,7 +23,7 @@
 ##SBATCH --mem=32000
 
 #SBATCH --mail-type=none
-#SBATCH --time=00:02:59
+#SBATCH --time=00:10:59
 
 module load julia/1.4.2
 module load anaconda/3/2019.03 

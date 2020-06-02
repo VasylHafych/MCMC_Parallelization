@@ -3,6 +3,7 @@ using Distributed
 Distributed.addprocs(3)
 @everywhere @show myid()
 
+
 using KDTree
 using CPUTime
 using JLD2
@@ -54,64 +55,70 @@ end
     likelihood = params -> LogDVal((log(g(params.a))))
     
 end
-    
-prior = NamedTupleDist(a = [[min_v .. max_v for i in 1:N]...],);
-posterior = PosteriorDensity(likelihood, prior);
 
-nnsamples = 450
-nnchains = 75
+try
+    prior = NamedTupleDist(a = [[min_v .. max_v for i in 1:N]...],);
+    posterior = PosteriorDensity(likelihood, prior);
 
-samples, stats = bat_sample(posterior, (nnsamples, nnchains), MetropolisHastings(),);
+    nnsamples = 450
+    nnchains = 75
 
-smpl = flatview(unshaped.(samples.v))
-weights_LogLik = samples.logd
-weights_Histogram = samples.weight;
+    samples, stats = bat_sample(posterior, (nnsamples, nnchains), MetropolisHastings(),);
 
-data_kdtree = Data(smpl[:,1:5:end], weights_Histogram[1:5:end], weights_LogLik[1:5:end]);
+    smpl = flatview(unshaped.(samples.v))
+    weights_LogLik = samples.logd
+    weights_Histogram = samples.weight;
 
-KDTree.evaluate_total_cost(data::Data) = KDTree.cost_f_1(data)
+    data_kdtree = Data(collect(smpl[:,1:5:end]), weights_Histogram[1:5:end], weights_LogLik[1:5:end]);
 
-output, cost_array = DefineKDTree(data_kdtree, [1,2,3,4], 10);
+    KDTree.evaluate_total_cost(data::Data) = KDTree.cost_f_1(data)
 
-extend_tree_bounds!(output, repeat([min_v], N), repeat([max_v], N))
+    output, cost_array = DefineKDTree(data_kdtree, [1,2,3,4], 10);
 
-bounds_part = extract_par_bounds(output)
+    extend_tree_bounds!(output, repeat([min_v], N), repeat([max_v], N))
 
-@everywhere BATPar.make_named_prior(i) = BAT.NamedTupleDist( a =  [[i[j,1]..i[j,2] for j in 1:size(i)[1]]...])
+    bounds_part = extract_par_bounds(output)
 
-nnsamples = 10^4
-nnchains = 10
+    @everywhere BATPar.make_named_prior(i) = BAT.NamedTupleDist( a =  [[i[j,1]..i[j,2] for j in 1:size(i)[1]]...])
 
-tuning = AdaptiveMetropolisTuning(
-    λ = 0.5,
-    α = 0.15..0.35,
-    β = 1.5,
-    c = 1e-4..1e2
-)
+    nnsamples = 10^4
+    nnchains = 10
 
-burnin = MCMCBurninStrategy(
-    max_nsamples_per_cycle = 4000,
-    max_nsteps_per_cycle = 4000,
-    max_time_per_cycle = 25,
-    max_ncycles = 200
-)
+    tuning = AdaptiveMetropolisTuning(
+        λ = 0.5,
+        α = 0.15..0.35,
+        β = 1.5,
+        c = 1e-4..1e2
+    )
 
-algorithm = MetropolisHastings();
+    burnin = MCMCBurninStrategy(
+        max_nsamples_per_cycle = 4000,
+        max_nsteps_per_cycle = 4000,
+        max_time_per_cycle = 25,
+        max_ncycles = 200
+    )
 
-@time samples_parallel = bat_sample_parallel(likelihood, bounds_part, (nnsamples, nnchains), algorithm, tuning=tuning, burnin=burnin);
+    algorithm = MetropolisHastings();
 
-samples_ps = (samples = samples_parallel.samples,
-            weights_o = samples_parallel.weights_o,
-            weights_r = samples_parallel.weights_r,
-            log_lik = samples_parallel.log_lik,
-            space_ind = samples_parallel.space_ind,
-            uncertainty = samples_parallel.uncertainty,
-            integrals = samples_parallel.integrals,
-            time_mcmc = samples_parallel.time_mcmc,
-            time_integration = samples_parallel.time_integration,
-            proc_id = samples_parallel.proc_id,
-            n_threads = samples_parallel.n_threads,
-            timestamps = samples_parallel.timestamps)
+    @time samples_parallel = bat_sample_parallel(likelihood, bounds_part, (nnsamples, nnchains), algorithm, tuning=tuning, burnin=burnin);
 
-@save "/u/vhafych/NoMPI/samples_ps.jld" samples_ps;
+    samples_ps = (samples = samples_parallel.samples,
+                weights_o = samples_parallel.weights_o,
+                weights_r = samples_parallel.weights_r,
+                log_lik = samples_parallel.log_lik,
+                space_ind = samples_parallel.space_ind,
+                uncertainty = samples_parallel.uncertainty,
+                integrals = samples_parallel.integrals,
+                time_mcmc = samples_parallel.time_mcmc,
+                time_integration = samples_parallel.time_integration,
+                proc_id = samples_parallel.proc_id,
+                n_threads = samples_parallel.n_threads,
+                timestamps = samples_parallel.timestamps)
 
+    @save "Generated_Data/test-1.jld" samples_ps;
+
+finally
+   rmprocs.(workers())
+end
+
+@info "Done."

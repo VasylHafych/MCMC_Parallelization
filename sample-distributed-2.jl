@@ -6,6 +6,7 @@ ENV["JULIA_NUM_THREADS"] = ENV["SLURM_CPUS_PER_TASK"]
 slurm_ntasks = parse(Int, ENV["SLURM_NTASKS"])
 addprocs(SlurmManager(slurm_ntasks))
 
+
 using KDTree
 using CPUTime
 using JLD2
@@ -71,11 +72,11 @@ try
     weights_LogLik = samples.logd
     weights_Histogram = samples.weight;
 
-    data_kdtree = Data(smpl[:,1:5:end], weights_Histogram[1:5:end], weights_LogLik[1:5:end]);
+    data_kdtree = Data(collect(smpl[:,1:5:end]), weights_Histogram[1:5:end], weights_LogLik[1:5:end]);
 
     KDTree.evaluate_total_cost(data::Data) = KDTree.cost_f_1(data)
 
-    output, cost_array = DefineKDTree(data_kdtree, [1,2,3,4], 10);
+    output, cost_array = DefineKDTree(data_kdtree, [1,2,3,4], 20);
 
     extend_tree_bounds!(output, repeat([min_v], N), repeat([max_v], N))
 
