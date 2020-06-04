@@ -78,7 +78,7 @@ try
     # KD Tree:
     data_kdtree = Data(collect(flatview(unshaped.(exploration_samples.v))), exploration_samples.weight, exploration_samples.logd)
 
-    n_partitions = 100
+    n_partitions = 10
     dims_partition = collect(1:N)
 
     KDTree.evaluate_total_cost(data::Data) = KDTree.cost_f_1(data)
@@ -91,7 +91,7 @@ try
 
     @everywhere BATPar.make_named_prior(i) = BAT.NamedTupleDist( a =  [[i[j,1]..i[j,2] for j in 1:size(i)[1]]...])
 
-    nsamples_per_subspace = 10^5
+    nsamples_per_subspace = 2*10^5
     nchains_per_subspace = 6
 
     tuning = AdaptiveMetropolisTuning(
@@ -107,10 +107,14 @@ try
         max_time_per_cycle = 25,
         max_ncycles = 40
     )
+    
+    AHMI_settings = BAT.HMISettings(BAT.cholesky_partial_whitening!,
+        30000, 3.0, 0.1, true, 30, true,  Dict("cov. weighted result" => BAT.hm_combineresults_covweighted!));
 
     algorithm = MetropolisHastings();
 
-    @time samples_parallel = bat_sample_parallel(likelihood, subspace_boundaries, (nsamples_per_subspace, nchains_per_subspace), algorithm, tuning=tuning, burnin=burnin);
+    @time samples_parallel = bat_sample_parallel(likelihood, subspace_boundaries, (nsamples_per_subspace, nchains_per_subspace), 
+        algorithm, tuning=tuning, burnin=burnin, settings=AHMI_settings, );
 
     samples_ps = (samples = samples_parallel.samples,
                 weights_o = samples_parallel.weights_o,

@@ -94,7 +94,7 @@ try
 
     @everywhere BATPar.make_named_prior(i) = BAT.NamedTupleDist( a =  [[i[j,1]..i[j,2] for j in 1:size(i)[1]]...])
 
-    nsamples_per_subspace = 10^5
+    nsamples_per_subspace = 2*10^5
     nchains_per_subspace = 6
 
     tuning = AdaptiveMetropolisTuning(
@@ -111,9 +111,13 @@ try
         max_ncycles = 40
     )
 
+     AHMI_settings = BAT.HMISettings(BAT.cholesky_partial_whitening!,
+        30000, 3.0, 0.1, true, 30, true,  Dict("cov. weighted result" => BAT.hm_combineresults_covweighted!));
+
     algorithm = MetropolisHastings();
 
-    @time samples_parallel = bat_sample_parallel(likelihood, subspace_boundaries, (nsamples_per_subspace, nchains_per_subspace), algorithm, tuning=tuning, burnin=burnin);
+    @time samples_parallel = bat_sample_parallel(likelihood, subspace_boundaries, (nsamples_per_subspace, nchains_per_subspace), 
+        algorithm, tuning=tuning, burnin=burnin, settings=AHMI_settings, )
 
     samples_ps = (samples = samples_parallel.samples,
                 weights_o = samples_parallel.weights_o,
@@ -128,7 +132,7 @@ try
                 n_threads = samples_parallel.n_threads,
                 timestamps = samples_parallel.timestamps)
 
-    @save "Generated_Data/test-2.jld" samples_ps;
+    @save "Generated_Data/test-3.jld" samples_ps;
 
 finally
    rmprocs.(workers())
