@@ -96,14 +96,14 @@ try
 
     tuning = AdaptiveMetropolisTuning(
         λ = 0.5,
-        α = 0.15..0.35,
+        α = 0.1..0.15,
         β = 1.5,
         c = 1e-4..1e2
     )
 
     burnin = MCMCBurninStrategy(
-        max_nsamples_per_cycle = 4000,
-        max_nsteps_per_cycle = 4000,
+        max_nsamples_per_cycle = 5000,
+        max_nsteps_per_cycle = 5000,
         max_time_per_cycle = 25,
         max_ncycles = 40
     )
